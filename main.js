@@ -1,86 +1,103 @@
 var cellArray = document.getElementsByClassName("cell");
 
+//enums to clean up code a bit
+var inputEnum = {"touchStart": 0, "touchMove": 1, "touchEnd": 2, "touchHold": 3};
+var gestureEnum = {"tap": 0, "doubleTap": 1, "swipe": 2, "press": 3};
+var inputComboEnum = {"tapCombo": "0,2", "swipeCombo":"0,1,2", "pressCombo":"0,3,2"};
 
-var gestureEnum = {"touchStart": 0, "touchMove": 1, "touchEnd": 2, "touchHold": 3};
+//Array buffers individual input events and gestures (gestures = predefined combo of inputs)
 var inputBuffer = [];
-var bufferWindow = 1000;
-var bufferTimeout;
+var gestureBuffer = [];
 
-console.log(cellArray);
+//Time out windows for gestures and inputs
+var gestureWindow = 1000;
+var inputWindow = 500;
 
-
-//get all cells
-//get all/generate all state machines, attach to appropriate cells
-
-
-//attach mouse move, mouse down, and mouse up event listeners
-//tap
-//mousedown, mouseup relatively fast
+//Variables for holding the timeout functions for the buffers so they can be cancelled/restarted
+var inputTimeout;
+var gestureTimeout;
 
 
+//Add all the event listeners
 document.addEventListener("touchstart", function () {
-    addInputToBuffer(gestureEnum.touchStart);
+    addInputToBuffer(inputEnum.touchStart);
 });
 document.addEventListener("touchend", function () {
-    addInputToBuffer(gestureEnum.touchEnd);
+    addInputToBuffer(inputEnum.touchEnd);
 });
 document.addEventListener("touchmove", function () {
-    if (inputBuffer[inputBuffer.length - 1] !== gestureEnum.touchMove) {
-        addInputToBuffer(gestureEnum.touchMove);
+    if (inputBuffer[inputBuffer.length - 1] !== inputEnum.touchMove) {
+        addInputToBuffer(inputEnum.touchMove);
     } else {
-        resetBuffer();
+        resetInputBuffer();
     }
 });
 
-function resetBuffer() {
-    if (bufferTimeout) {
-        clearTimeout(bufferTimeout);
+//input event code
+
+function resetInputBuffer() {
+    if (inputTimeout) {
+        clearTimeout(inputTimeout);
     }
-    bufferTimeout = setTimeout(resolveBuffer, bufferWindow);
+    inputTimeout = setTimeout(resolveInputBuffer, inputWindow);
 }
 
-function addInputToBuffer(gesture) {
-    inputBuffer.push(gesture);
-    resetBuffer();
+function addInputToBuffer(input) {
+    inputBuffer.push(input);
+    if(inputBuffer.length >= 2) {
+        resolveInputBuffer();
+    } else {
+        resetInputBuffer();
+    }
 }
 
-
-function resolveBuffer() {
-    console.log(inputBuffer.toString());
-    if (inputBuffer[inputBuffer.length - 1] === gestureEnum.touchStart) {
-        inputBuffer.push(gestureEnum.touchHold);
-        resetBuffer();
-        return;
-    } else if (inputBuffer[inputBuffer.length - 1] === gestureEnum.touchHold) {
-        resetBuffer();
+function resolveInputBuffer() {
+    //if we have initiated a touchStart and haven't let go yet we are pressing so just push a touchHold input onto the buffer and refresh it
+    if (inputBuffer[inputBuffer.length - 1] === inputEnum.touchStart) {
+        inputBuffer.push(inputEnum.touchHold);
+        resetInputBuffer();
         return;
     }
-    console.log("RESOLVING BUFFER!");
-    if (inputBuffer.toString() === "0,2,0,2") {
-        alert("DOUBLE TAP");
+    //if the last input was a touchHold or touchMove then the user is still pressing/swiping so reset the buffer
+    else if (inputBuffer[inputBuffer.length - 1] === inputEnum.touchHold || inputBuffer[inputBuffer.length - 1] === inputEnum.touchMove) {
+        resetInputBuffer();
+        return;
     }
-    if (inputBuffer.toString() === "0,2") {
-        alert("TAP");
-    }
-    if (inputBuffer.toString() === "0,1,2") {
-        alert("SWIPE");
-    }
-    if (inputBuffer.toString() === "0,3,2") {
-        alert("PRESS");
-    }
+    parseInputCombo(inputBuffer.toString());
     inputBuffer = [];
 }
 
-//double tap
-//mousedown, mouseup, mousedown, mouseup relatively fast
-//press
-//mousedown, pause, mouseup
-//swipe
-//mousedown, change in mouse position, mouseup
+function parseInputCombo(inputString) {
+    if (inputString === inputComboEnum.tapCombo) {
+        if(gestureBuffer[gestureBuffer.length - 1] === gestureEnum.tap) {
+            addGestureToBuffer(gestureEnum.doubleTap);
+        } else {
+            addGestureToBuffer(gestureEnum.tap);
+        }
+    }
+    if (inputString === inputComboEnum.swipeCombo) {
+        addGestureToBuffer(gestureEnum.swipe)
+    }
+    if (inputString === inputComboEnum.pressCombo) {
+        addGestureToBuffer(gestureEnum.press);
+    }
+}
 
-//when you do ANY gesture enter a buffer state for the current state, where the previous gesture becomes cued for a short time so it can be combo'd with another
-//if you have a potential combo look at the entire buffer stack to see if any combos are present
-//if not a combo, omit the earliest input, and check if the remainder is a combo, if not
+//gesture code
 
-//get current cell
-//
+function addGestureToBuffer(gesture) {
+    gestureBuffer.push(gesture);
+    resetGestureBuffer();
+}
+
+function resetGestureBuffer() {
+    if (gestureTimeout) {
+        clearTimeout(gestureTimeout);
+    }
+    gestureTimeout = setTimeout(resolveGestureBuffer, gestureWindow);
+}
+
+function resolveGestureBuffer() {
+    console.log("GESTURES: ", gestureBuffer.toString());
+    gestureBuffer = [];
+}
